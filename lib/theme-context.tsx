@@ -36,16 +36,12 @@ function applyTheme(theme: Theme) {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("dark");
 
-  // Restore saved preference (or system preference) on first mount
+  // Restore saved preference on first mount (dark is the StudioSpace default)
   useEffect(() => {
     let initial: Theme = "dark";
     try {
       const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
-      if (saved === "light" || saved === "dark") {
-        initial = saved;
-      } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
-        initial = "light";
-      }
+      if (saved === "light" || saved === "dark") initial = saved;
     } catch {
       /* ignore */
     }

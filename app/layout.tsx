@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/lib/theme-context";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ToastProvider from "@/components/ToastProvider";
+import { Suspense } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,9 +32,7 @@ const themeScript = `
 (function () {
   try {
     var t = localStorage.getItem('studiospace-theme');
-    if (t !== 'light' && t !== 'dark') {
-      t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    }
+    if (t !== 'light' && t !== 'dark') t = 'dark';
     if (t === 'dark') document.documentElement.classList.add('dark');
     document.documentElement.style.colorScheme = t;
   } catch (e) {}
@@ -46,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
@@ -55,7 +54,10 @@ export default function RootLayout({
           <AuthProvider>
             <ToastProvider />
             <div className="flex min-h-screen flex-col">
-              <Navbar />
+              {/* Navbar uses usePathname — Suspense lets dynamic routes prerender */}
+              <Suspense fallback={<div className="h-[72px] border-b border-border" />}>
+                <Navbar />
+              </Suspense>
               <main className="flex-1">{children}</main>
               <Footer />
             </div>

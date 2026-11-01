@@ -14,6 +14,7 @@ import EmptyState from "./EmptyState";
  */
 export default function FeaturedStudios() {
   const [studios, setStudios] = useState<Studio[] | null>(null);
+  const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -27,6 +28,14 @@ export default function FeaturedStudios() {
           setFailed(true);
         }
       });
+    api
+      .get<{ studios: Studio[] }>("/api/wishlist")
+      .then(
+        (data) =>
+          active &&
+          setWishlistIds(new Set(data.studios.map((s) => s._id)))
+      )
+      .catch(() => undefined);
     return () => {
       active = false;
     };
@@ -52,7 +61,11 @@ export default function FeaturedStudios() {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {studios.map((studio) => (
-        <StudioCard key={studio._id} studio={studio} />
+        <StudioCard
+          key={studio._id}
+          studio={studio}
+          saved={wishlistIds.has(studio._id)}
+        />
       ))}
       <div className="sm:col-span-2 lg:col-span-3 flex justify-center pt-2">
         <Link href="/studios" className="btn-secondary">
