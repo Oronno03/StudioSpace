@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StudioSpace
 
-## Getting Started
+**Peer-to-peer creative workspace & production studio sharing platform** — book photo studios, cinema sound stages, podcast lounges, music suites and art workshops by the hour.
 
-First, run the development server:
+🔗 **Live site:** _add your Vercel deployment URL here after deploying (e.g. https://studiospace-live.vercel.app)_
+🎬 **API repo:** `../studiospace-backend` (Express + MongoDB)
+
+---
+
+## ✨ What StudioSpace does
+
+- **Discover & filter studios** — explore a live marketplace with category chips, keyword search, price range, location and rating/price sorting. Category cards on the home page deep-link straight into a pre-filtered `/studios` view.
+- **Rich studio pages** — every listing has a photo gallery with prev/next navigation, amenity checklist, capacity, deposit, host card, star rating and real guest reviews.
+- **Transparent hourly booking** — pick a date + start/end time in a custom booking dialog; the total (hours × rate + refundable deposit) updates live. Bookings start as **Pending** and hosts confirm them from the dashboard.
+- **Host tools** — list a studio with an imgbb image upload (or image URL), manage listings with update/delete + confirmation modals, and confirm / decline / complete incoming bookings.
+- **My Bookings** — status-filtered reservation list (Pending, Confirmed, Completed, Cancelled), one-tap cancellation for pending slots, and a downloadable **PDF invoice** for confirmed/completed bookings.
+- **Saved studios wishlist** — heart any studio card; your shortlist is stored in MongoDB and shown on `/wishlist`.
+- **Authentication** — email/password with live password rules, Google Identity Services sign-in, and JWT sessions sealed in **HTTPOnly cookies**.
+- **Polished UX** — full light/dark theme toggle, Sonner toast notifications for every action, branded skeleton loaders and a custom 404 page.
+
+## 🧱 Tech stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | **Next.js 16** (App Router, Turbopack), React 19, TypeScript |
+| Styling | **Tailwind CSS v4** design tokens, custom light/dark theme system |
+| UI extras | Swiper (hero slider), Sonner (toasts), jsPDF + autotable (invoices) |
+| Backend | **Express 5**, Node.js |
+| Database | **MongoDB** with Mongoose |
+| Auth | JWT in HTTPOnly cookies, bcryptjs hashing, Google Identity Services |
+| Deployment | Vercel (client) · Render (server) |
+
+## 🚀 Local setup
+
+### 1. Backend
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd ../studiospace-backend
+npm install
+cp .env.example .env        # set MONGODB_URI + JWT_SECRET (+ GOOGLE_CLIENT_ID)
+npm run seed                # demo studios, test accounts, a sample booking
+npm run dev                 # http://localhost:5000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Frontend
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+cp .env.example .env        # NEXT_PUBLIC_API_URL=http://localhost:5000
+npm run dev                 # http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Environment variables
 
-## Learn More
+| File | Variable | Purpose |
+|------|----------|---------|
+| `studiospace-backend/.env` | `MONGODB_URI` | MongoDB connection string |
+| | `JWT_SECRET` | Secret used to sign session tokens |
+| | `CLIENT_ORIGIN` | Allowed frontend origin (CORS) |
+| | `GOOGLE_CLIENT_ID` | Google OAuth web client ID (token verification) |
+| `studiospace/.env` | `NEXT_PUBLIC_API_URL` | Express API base URL |
+| | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth web client ID (button) |
+| | `NEXT_PUBLIC_IMGBB_API_KEY` | Optional — enables image uploads via imgbb |
 
-To learn more about Next.js, take a look at the following resources:
+> Image URL entry always works; the imgbb upload button activates once `NEXT_PUBLIC_IMGBB_API_KEY` is set.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔑 Examiner test credentials
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Role | Email | Password |
+|------|-------|----------|
+| Guest | `harry@studiospace.dev` | `Password123` |
+| Host | `maya@studiospace.dev` | `Password123` |
 
-## Deploy on Vercel
+The host account owns all seeded studios, so it can confirm bookings and test the dashboard; the guest account can book, cancel and download invoices.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔐 Challenge implementations
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **JWT in HTTPOnly cookies** — the API sets `studiospace_token` as `httpOnly`, `sameSite=lax`; every mutation (`POST /api/studios`, `PATCH`/`DELETE /api/studios/:id`, `POST /api/bookings`, wishlist) is guarded and returns **401** without a valid cookie.
+2. **Double-booking prevention** — `POST /api/bookings` queries MongoDB for overlapping **Confirmed** bookings on the same studio and date, rejecting collisions with a clear `409` message.
+3. **Theme customization** — navbar sun/moon toggle switches the entire UI between light and dark; the choice persists in `localStorage` and is applied before hydration to avoid flashes.
+
+## ⭐ Optional features
+
+- **PDF booking invoices** — generated client-side with jsPDF from My Bookings.
+- **Saved studios wishlist** — heart toggles persist in MongoDB (`User.wishlist`).
+
+## 🧪 Testing
+
+The API ships with an end-to-end test suite:
+
+```bash
+cd ../studiospace-backend
+node tests/api.test.mjs     # 34 assertions: auth, CRUD, bookings, wishlist
+```
+
+The frontend was verified in a headless browser (login, protected-route reloads, booking, cancellation, CRUD, wishlist, theme toggle, 404) with zero JavaScript errors.
+
+## 📁 Project structure
+
+```
+app/
+  page.tsx                 # Home — slider, featured studios, categories, guarantees
+  studios/                 # Explore + [id] details + edit/[id]
+  add-studio/              # New listing (private)
+  my-listings/             # Host listing management (private)
+  my-bookings/             # Guest bookings + PDF invoice (private)
+  dashboard/               # Host booking management + stats (private)
+  wishlist/                # Saved studios (private)
+  login/ register/         # Auth
+  how-it-works/ about/     # Static content
+  not-found.tsx loading.tsx
+components/                # Navbar, Footer, cards, modals, skeletons, forms
+lib/                       # API client, auth/theme contexts, types, format, invoice
+```
