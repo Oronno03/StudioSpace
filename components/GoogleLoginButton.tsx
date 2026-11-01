@@ -14,6 +14,10 @@ declare global {
 
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 
+// Google Identity Services should only be initialised once per page load.
+let gsiInitialized = false;
+let gsiCredentialHandler: ((credential: string) => void) | null = null;
+
 /**
  * Google sign-in button using Google Identity Services.
  * Sends the ID token to the backend which verifies it (when GOOGLE_CLIENT_ID
@@ -29,28 +33,42 @@ export default function GoogleLoginButton({
   const { googleLogin, refresh } = useAuth();
   const [busy, setBusy] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
+  const onSuccessRef = useRef(onSuccess);
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  // Keep the latest callback without re-initialising Google each render.
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
 
   useEffect(() => {
     if (!clientId) return; // renders fallback button below
 
     function init() {
       if (!window.google || !buttonRef.current) return;
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: async (response: { credential: string }) => {
-          setBusy(true);
-          try {
-            await googleLogin(response.credential);
-            toast.success("Signed in with Google.");
-            onSuccess?.();
-          } catch (err: any) {
-            toast.error(err?.message || "Google sign-in failed.");
-          } finally {
-            setBusy(false);
-          }
-        },
-      });
+
+      gsiCredentialHandler = async (credential: string) => {
+        setBusy(true);
+        try {
+          await googleLogin(credential);
+          toast.success("Signed in with Google.");
+          onSuccessRef.current?.();
+        } catch (err: any) {
+          toast.error(err?.message || "Google sign-in failed.");
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      if (!gsiInitialized) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response: { credential: string }) =>
+            gsiCredentialHandler?.(response.credential),
+        });
+        gsiInitialized = true;
+      }
+
       window.google.accounts.id.renderButton(buttonRef.current, {
         theme: "outline",
         size: "large",
@@ -79,7 +97,7 @@ export default function GoogleLoginButton({
     return () => {
       script.onload = null;
     };
-  }, [clientId, googleLogin, onSuccess]);
+  }, [clientId, googleLogin]);
 
   if (!clientId) {
     // No OAuth client configured yet (development) — offer a demo quick sign-in.
