@@ -2,8 +2,9 @@
 
 **Peer-to-peer creative workspace & production studio sharing platform** — book photo studios, cinema sound stages, podcast lounges, music suites and art workshops by the hour.
 
-🔗 **Live site:** _add your Vercel deployment URL here after deploying (e.g. https://studiospace-live.vercel.app)_
-🎬 **API repo:** `../studiospace-backend` (Express + MongoDB)
+🔗 **Live site:** https://studiospace-live.vercel.app
+🎬 **Live API:** https://studiospace-api-flax.vercel.app/api/health
+📦 **API repo:** `../studiospace-backend` (Express + MongoDB)
 
 ---
 
@@ -28,7 +29,7 @@
 | Backend | **Express 5**, Node.js |
 | Database | **MongoDB** with Mongoose |
 | Auth | JWT in HTTPOnly cookies, bcryptjs hashing, Google Identity Services |
-| Deployment | Vercel (client) · Render (server) |
+| Deployment | Vercel (Next.js client + Express serverless API) |
 
 ## 🚀 Local setup
 
