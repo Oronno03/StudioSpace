@@ -6,6 +6,8 @@
 🎬 **Live API:** https://studiospace-api-flax.vercel.app/api/health
 📦 **API repo:** `../studiospace-backend` (Express + MongoDB)
 
+> Pushes to `main` automatically deploy to production through Vercel’s GitHub integration.
+
 ---
 
 ## ✨ What StudioSpace does
