@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { STUDIO_CATEGORIES, Studio } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
@@ -68,8 +68,7 @@ export function studioToValues(studio: Studio): StudioFormValues {
 
 /**
  * The single studio form used by /add-studio and /studios/edit/[id].
- * Image can be pasted as a URL or uploaded straight to imgbb (needs
- * NEXT_PUBLIC_IMGBB_API_KEY; otherwise upload is disabled with a hint).
+ * Studios use a direct image URL (no third-party image hosting).
  */
 export default function StudioForm({
   values,
@@ -85,11 +84,15 @@ export default function StudioForm({
   submitLabel: string;
 }) {
   const { user } = useAuth();
-  const [uploading, setUploading] = useState(false);
-  const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+  const [previewFailed, setPreviewFailed] = useState(false);
 
   const set = <K extends keyof StudioFormValues>(key: K, v: StudioFormValues[K]) =>
     onChange({ ...values, [key]: v });
+
+  // Reset the preview warning whenever the URL changes.
+  useEffect(() => {
+    setPreviewFailed(false);
+  }, [values.image]);
 
   function toggleAmenity(a: string) {
     set(
@@ -98,43 +101,6 @@ export default function StudioForm({
         ? values.amenities.filter((x) => x !== a)
         : [...values.amenities, a]
     );
-  }
-
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    if (!imgbbKey) {
-      toast.error(
-        "Image upload needs an imgbb API key (.env.local) — paste an image URL instead."
-      );
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be under 5 MB.");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const body = new FormData();
-      body.append("image", file);
-      const res = await fetch(
-        `https://api.imgbb.com/1/upload?key=${imgbbKey}`,
-        { method: "POST", body }
-      );
-      const data = await res.json();
-      if (!res.ok || !data?.data?.url) {
-        throw new Error(data?.error?.message || "Upload failed");
-      }
-      set("image", data.data.url);
-      toast.success("Image uploaded to imgbb.");
-    } catch (err: any) {
-      toast.error(err?.message || "Could not upload the image.");
-    } finally {
-      setUploading(false);
-    }
   }
 
   function validate(): string | null {
@@ -273,32 +239,34 @@ export default function StudioForm({
               placeholder="https://images.unsplash.com/…"
               className="input"
             />
-            <div className="mt-2 flex items-center gap-3">
-              <label className="btn-secondary btn-sm cursor-pointer">
-                {uploading ? "Uploading…" : "Or upload an image"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleUpload}
-                  disabled={uploading}
-                />
-              </label>
-              {imgbbKey ? (
-                <span className="text-[11px] text-ink-3">Powered by imgbb</span>
-              ) : (
-                <span className="text-[11px] text-ink-3">
-                  (upload disabled — no imgbb key configured)
-                </span>
-              )}
-            </div>
+            <p className="mt-1.5 text-[11px] text-ink-3">
+              Paste a direct image URL (jpg, png, webp) — it becomes your
+              listing&apos;s cover photo.
+            </p>
             {values.image && /^https?:\/\//.test(values.image) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={values.image}
-                alt="Studio preview"
-                className="mt-3 aspect-[16/9] w-full rounded-xl border border-border object-cover"
-              />
+              <>
+                {previewFailed ? (
+                  <div className="mt-3 flex aspect-[16/9] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-danger/50 bg-danger-soft/40 text-center">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-danger">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="M21 15l-5-5L5 21" />
+                    </svg>
+                    <p className="px-4 text-xs font-semibold text-danger">
+                      This image URL didn&apos;t load. Check the link and try
+                      again.
+                    </p>
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={values.image}
+                    alt="Studio preview"
+                    onError={() => setPreviewFailed(true)}
+                    className="mt-3 aspect-[16/9] w-full rounded-xl border border-border object-cover"
+                  />
+                )}
+              </>
             )}
           </div>
 
@@ -371,7 +339,7 @@ export default function StudioForm({
       </div>
 
       <div className="flex justify-end gap-3">
-        <button type="submit" disabled={submitting || uploading} className="btn-primary px-8 py-3">
+        <button type="submit" disabled={submitting} className="btn-primary px-8 py-3">
           {submitting ? "Saving…" : submitLabel}
         </button>
       </div>

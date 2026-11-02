@@ -12,7 +12,7 @@
 - **Discover & filter studios** — explore a live marketplace with category chips, keyword search, price range, location and rating/price sorting. Category cards on the home page deep-link straight into a pre-filtered `/studios` view.
 - **Rich studio pages** — every listing has a photo gallery with prev/next navigation, amenity checklist, capacity, deposit, host card, star rating and real guest reviews.
 - **Transparent hourly booking** — pick a date + start/end time in a custom booking dialog; the total (hours × rate + refundable deposit) updates live. Bookings start as **Pending** and hosts confirm them from the dashboard.
-- **Host tools** — list a studio with an imgbb image upload (or image URL), manage listings with update/delete + confirmation modals, and confirm / decline / complete incoming bookings.
+- **Host tools** — list a studio with a direct image URL, manage listings with update/delete + confirmation modals, and confirm / decline / complete incoming bookings.
 - **My Bookings** — status-filtered reservation list (Pending, Confirmed, Completed, Cancelled), one-tap cancellation for pending slots, and a downloadable **PDF invoice** for confirmed/completed bookings.
 - **Saved studios wishlist** — heart any studio card; your shortlist is stored in MongoDB and shown on `/wishlist`.
 - **Authentication** — email/password with live password rules, Google Identity Services sign-in, and JWT sessions sealed in **HTTPOnly cookies**.
@@ -60,9 +60,8 @@ npm run dev                 # http://localhost:3000
 | | `GOOGLE_CLIENT_ID` | Google OAuth web client ID (token verification) |
 | `studiospace/.env` | `NEXT_PUBLIC_API_URL` | Express API base URL |
 | | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth web client ID (button) |
-| | `NEXT_PUBLIC_IMGBB_API_KEY` | Optional — enables image uploads via imgbb |
 
-> Image URL entry always works; the imgbb upload button activates once `NEXT_PUBLIC_IMGBB_API_KEY` is set.
+> Studio cover photos are supplied as direct image URLs — no third-party upload keys are required.
 
 ## 🔑 Examiner test credentials
 

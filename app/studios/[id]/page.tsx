@@ -13,12 +13,65 @@ import WishlistButton from "@/components/WishlistButton";
 import { CategoryBadge } from "@/components/StudioCard";
 import { PinIcon, StarIcon } from "@/components/icons";
 
+function GalleryPhoto({
+  src,
+  alt,
+  className = "",
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (failed || !src) {
+    return (
+      <div
+        className={`flex items-center justify-center bg-surface-2 text-ink-3 ${className}`}
+        role="img"
+        aria-label="Image unavailable"
+      >
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="M21 15l-5-5L5 21" />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className={className}
+    />
+  );
+}
+
 function StudioDetails() {
   const { id } = useParams<{ id: string }>();
   const [studio, setStudio] = useState<Studio | null>(null);
   const [failed, setFailed] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -36,6 +89,23 @@ function StudioDetails() {
     };
   }, [id]);
 
+  // Keep the heart in sync with the signed-in user's saved studios.
+  useEffect(() => {
+    if (!studio) return;
+    let active = true;
+    api
+      .get<{ studios: Studio[] }>("/api/wishlist")
+      .then(
+        (data) =>
+          active &&
+          setSaved(data.studios.some((item) => item._id === studio._id))
+      )
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [studio]);
+
   if (failed) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-20">
@@ -51,8 +121,15 @@ function StudioDetails() {
 
   if (!studio) return <DetailsSkeleton />;
 
-  const images = [studio.image, ...(studio.gallery || [])].filter(Boolean);
-  const current = images[Math.min(activeImage, images.length - 1)];
+  // Merge the cover with the gallery, dropping duplicate photos.
+  const images = Array.from(
+    new Map(
+      [studio.image, ...(studio.gallery || [])]
+        .filter((url) => Boolean(url && url.trim()))
+        .map((url) => [url.split("?")[0], url])
+    ).values()
+  );
+  const current = images[Math.min(activeImage, images.length - 1)] || "";
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -66,13 +143,22 @@ function StudioDetails() {
       </nav>
 
       {/* Gallery */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <div className="relative overflow-hidden rounded-3xl border border-border lg:col-span-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+      <div
+        className={`mt-6 grid gap-4 ${
+          images.length > 1 ? "lg:h-[440px] lg:grid-cols-3 lg:grid-rows-1" : ""
+        }`}
+      >
+        <div
+          className={`relative overflow-hidden rounded-3xl border border-border bg-surface-2 ${
+            images.length > 1 ? "min-h-0 lg:col-span-2" : ""
+          }`}
+        >
+          <GalleryPhoto
             src={current}
-            alt={`${studio.title} — photo ${activeImage + 1}`}
-            className="aspect-[16/9] w-full object-cover"
+            alt={`${studio.title} — photo ${Math.min(activeImage + 1, images.length)}`}
+            className={`aspect-[16/9] w-full object-cover ${
+              images.length > 1 ? "lg:aspect-auto lg:h-full" : ""
+            }`}
           />
           {images.length > 1 && (
             <>
@@ -104,26 +190,35 @@ function StudioDetails() {
             </>
           )}
         </div>
-        <div className="grid grid-cols-4 gap-3 lg:grid-cols-1 lg:grid-rows-4">
-          {images.slice(0, 4).map((img, i) => (
-            <button
-              key={img + i}
-              type="button"
-              onClick={() => setActiveImage(i)}
-              aria-label={`Show photo ${i + 1}`}
-              className={`overflow-hidden rounded-2xl border-2 transition-colors ${
-                i === activeImage ? "border-brand" : "border-transparent hover:border-border"
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={img}
-                alt=""
-                className={`h-full w-full object-cover ${i === activeImage ? "opacity-100" : "opacity-80"}`}
-              />
-            </button>
-          ))}
-        </div>
+
+        {images.length > 1 && (
+          <div className="grid grid-cols-4 gap-3 lg:h-full lg:min-h-0 lg:auto-rows-fr lg:grid-cols-1">
+            {images.map((img, i) => (
+              <button
+                key={img + i}
+                type="button"
+                onClick={() => setActiveImage(i)}
+                aria-label={`Show photo ${i + 1}`}
+                aria-current={i === activeImage}
+                className={`group relative aspect-[16/10] overflow-hidden rounded-2xl border-2 transition-colors lg:aspect-auto lg:h-full ${
+                  i === activeImage
+                    ? "border-brand"
+                    : "border-transparent hover:border-border"
+                }`}
+              >
+                <GalleryPhoto
+                  src={img}
+                  alt=""
+                  className={`h-full w-full object-cover transition-opacity ${
+                    i === activeImage
+                      ? "opacity-100"
+                      : "opacity-70 group-hover:opacity-100"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-10 grid gap-10 lg:grid-cols-3">
@@ -144,7 +239,11 @@ function StudioDetails() {
                 <PinIcon size={15} /> {studio.location}
               </p>
             </div>
-            <WishlistButton studioId={studio._id} className="h-11 w-11" />
+            <WishlistButton
+              studioId={studio._id}
+              initialSaved={saved}
+              className="h-11 w-11"
+            />
           </div>
 
           {/* Overview */}
