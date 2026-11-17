@@ -65,12 +65,20 @@ export default function BookingModal({
       onClose();
       router.push("/my-bookings");
     } catch (err) {
-      // Challenge 2 surfaces here: 409 from the overlap check
-      toast.error(
-        err instanceof ApiError
-          ? err.message
-          : "Booking failed. Please try again."
-      );
+      // Challenge 2 surfaces here: the API returns 409 when the requested
+      // window overlaps a Pending or Confirmed reservation.
+      if (err instanceof ApiError && err.status === 409) {
+        toast.error("Time slot unavailable", {
+          description: err.message,
+          duration: 6000,
+        });
+      } else {
+        toast.error(
+          err instanceof ApiError
+            ? err.message
+            : "Booking failed. Please try again."
+        );
+      }
     } finally {
       setBusy(false);
     }

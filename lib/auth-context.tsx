@@ -70,11 +70,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const googleLogin = useCallback(async (credential: string) => {
-    const data = await api.post<{ user: User }>("/api/auth/google", {
-      credential,
-    });
-    setUser(data.user);
-    return data.user;
+    // 6.4 / 6.6: BetterAuth's Google One Tap plugin verifies the Google ID
+    // token and creates a MongoDB-backed BetterAuth session (HTTPOnly cookie).
+    try {
+      const data = await api.post<{
+        user: { id: string; name: string; email: string; image?: string | null };
+      }>("/api/auth/one-tap/callback", { idToken: credential });
+
+      const nextUser: User = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        photoURL: data.user.image || "",
+      };
+      setUser(nextUser);
+      return nextUser;
+    } catch {
+      // Legacy verified-ID-token endpoint keeps demo/local accounts working.
+      const data = await api.post<{ user: User }>("/api/auth/google", {
+        credential,
+      });
+      setUser(data.user);
+      return data.user;
+    }
   }, []);
 
   const logout = useCallback(async () => {

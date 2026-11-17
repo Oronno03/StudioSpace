@@ -18,7 +18,7 @@
 - **Host tools** — list a studio with a direct image URL, manage listings with update/delete + confirmation modals, and confirm / decline / complete incoming bookings.
 - **My Bookings** — status-filtered reservation list (Pending, Confirmed, Completed, Cancelled), one-tap cancellation for pending slots, and a downloadable **PDF invoice** for confirmed/completed bookings.
 - **Saved studios wishlist** — heart any studio card; your shortlist is stored in MongoDB and shown on `/wishlist`.
-- **Authentication** — email/password with live password rules, Google Identity Services sign-in, and JWT sessions sealed in **HTTPOnly cookies**.
+- **Authentication** — email/password with live password rules, Google Identity Services via **BetterAuth's Google One Tap plugin**, and BetterAuth MongoDB-backed sessions alongside JWT sessions sealed in **HTTPOnly cookies**.
 - **Polished UX** — full light/dark theme toggle, Sonner toast notifications for every action, branded skeleton loaders and a custom 404 page.
 
 ## 🧱 Tech stack
@@ -30,7 +30,7 @@
 | UI extras | Swiper (hero slider), Sonner (toasts), jsPDF + autotable (invoices) |
 | Backend | **Express 5**, Node.js |
 | Database | **MongoDB** with Mongoose |
-| Auth | JWT in HTTPOnly cookies, bcryptjs hashing, Google Identity Services |
+| Auth | **BetterAuth** (MongoDB adapter + sessions, Google One Tap) and JWT in HTTPOnly cookies, bcryptjs hashing |
 | Deployment | Vercel (Next.js client + Express serverless API) |
 
 ## 🚀 Local setup
@@ -58,9 +58,11 @@ npm run dev                 # http://localhost:3000
 | File | Variable | Purpose |
 |------|----------|---------|
 | `studiospace-backend/.env` | `MONGODB_URI` | MongoDB connection string |
-| | `JWT_SECRET` | Secret used to sign session tokens |
-| | `CLIENT_ORIGIN` | Allowed frontend origin (CORS) |
-| | `GOOGLE_CLIENT_ID` | Google OAuth web client ID (token verification) |
+| | `JWT_SECRET` | Secret used to sign the app's JWT session |
+| | `BETTER_AUTH_SECRET` | 32+ character secret for BetterAuth sessions/JWT |
+| | `BETTER_AUTH_URL` | Public API origin for BetterAuth |
+| | `CLIENT_ORIGIN` | Allowed frontend origin (CORS + BetterAuth trusted origin) |
+| | `GOOGLE_CLIENT_ID` | Google OAuth web client ID (One Tap verification) |
 | `studiospace/.env` | `NEXT_PUBLIC_API_URL` | Express API base URL |
 | | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth web client ID (button) |
 
@@ -77,8 +79,8 @@ The host account owns all seeded studios, so it can confirm bookings and test th
 
 ## 🔐 Challenge implementations
 
-1. **JWT in HTTPOnly cookies** — the API sets `studiospace_token` as `httpOnly`, `sameSite=lax`; every mutation (`POST /api/studios`, `PATCH`/`DELETE /api/studios/:id`, `POST /api/bookings`, wishlist) is guarded and returns **401** without a valid cookie.
-2. **Double-booking prevention** — `POST /api/bookings` queries MongoDB for overlapping **Confirmed** bookings on the same studio and date, rejecting collisions with a clear `409` message.
+1. **JWT in HTTPOnly cookies** — the API sets `studiospace_token` as `httpOnly`; every mutation (`POST /api/studios`, `PATCH`/`DELETE /api/studios/:id`, `POST /api/bookings`, wishlist) is guarded and returns **401** without a valid cookie. BetterAuth sessions are accepted by the same guard.
+2. **Double-booking prevention** — `POST /api/bookings` queries MongoDB for overlapping **Pending or Confirmed** bookings on the same studio + date (`StartA < EndB && EndA > StartB`), rejecting collisions with `409 Conflict`, a `BOOKING_CONFLICT` payload and a descriptive toast. Confirmation re-checks against confirmed bookings, and cancelled slots are released.
 3. **Theme customization** — navbar sun/moon toggle switches the entire UI between light and dark; the choice persists in `localStorage` and is applied before hydration to avoid flashes.
 
 ## ⭐ Optional features
@@ -92,7 +94,7 @@ The API ships with an end-to-end test suite:
 
 ```bash
 cd ../studiospace-backend
-node tests/api.test.mjs     # 34 assertions: auth, CRUD, bookings, wishlist
+node tests/api.test.mjs     # 45 assertions: auth, BetterAuth sessions, CRUD, bookings, wishlist
 ```
 
 The frontend was verified in a headless browser (login, protected-route reloads, booking, cancellation, CRUD, wishlist, theme toggle, 404) with zero JavaScript errors.
